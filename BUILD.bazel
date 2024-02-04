@@ -1,0 +1,12 @@
+cc_binary(
+    name = "calc",
+    srcs = [
+        "main.cpp",
+    ],
+    copts = [
+        "-std=c++17",
+    ],
+    deps = [
+        "@com_github_pegtl//:pegtl",
+    ],
+)
