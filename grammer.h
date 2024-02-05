@@ -23,7 +23,7 @@ struct identifier_first : tao::pegtl::ranges<'a', 'z', 'A', 'Z'> {};
 struct identifier_next : tao::pegtl::ranges<'a', 'z', 'A', 'Z', '0', '9', '_'> {
 };
 struct identifier
-    : tao::pegtl::pad<tao::pegtl::seq<identifier_first, tao::pegtl::star<identifier_next>>, tao::pegtl::space> {};
+    : tao::pegtl::seq<identifier_first, tao::pegtl::star<identifier_next>> {};
 
 // Define the rules for parentheses
 struct open_parenthesis

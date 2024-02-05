@@ -27,7 +27,7 @@ int main(int argc, char* argv[]) {
     try {
       auto root = tao::pegtl::parse_tree::parse<
           calc::grammar, tao::pegtl::parse_tree::node, calc::selector>(in);
-      tao::pegtl::parse_tree::print_dot(std::cout, *root);
+      // tao::pegtl::parse_tree::print_dot(std::cout, *root);
       auto value = calc::evaluate(*root, memory);
       std::cout << value << " (eval)" << std::endl;
       std::string code;
