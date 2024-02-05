@@ -50,7 +50,7 @@ bool compile(const tao::pegtl::parse_tree::node& node, CompileState& state,
       return true;
     } else if (node.is_type<identifier>()) {
       if (state.Find(node.string())) {
-        append_op(OP_FETCH, code);
+        append_op(OP_LOAD, code);
         append_address(state.GetAddress(node.string()), code);
         return true;
       } else {
@@ -66,26 +66,31 @@ bool compile(const tao::pegtl::parse_tree::node& node, CompileState& state,
       if (node.is_type<plus>()) {
         if (!compile(*node.children[0], state, code)) return false;
         if (!compile(*node.children[1], state, code)) return false;
-        append_op(OP_PLUS, code);
+        append_op(OP_ADD, code);
         return true;
       } else if (node.is_type<minus>()) {
         if (!compile(*node.children[0], state, code)) return false;
         if (!compile(*node.children[1], state, code)) return false;
-        append_op(OP_MINUS, code);
+        append_op(OP_SUB, code);
         return true;
       } else if (node.is_type<multiply>()) {
         if (!compile(*node.children[0], state, code)) return false;
         if (!compile(*node.children[1], state, code)) return false;
-        append_op(OP_MULTIPLY, code);
+        append_op(OP_MUL, code);
         return true;
       } else if (node.is_type<divide>()) {
         if (!compile(*node.children[0], state, code)) return false;
         if (!compile(*node.children[1], state, code)) return false;
-        append_op(OP_DIVIDE, code);
+        append_op(OP_DIV, code);
+        return true;
+      } else if (node.is_type<modulo>()) {
+        if (!compile(*node.children[0], state, code)) return false;
+        if (!compile(*node.children[1], state, code)) return false;
+        append_op(OP_MOD, code);
         return true;
       } else if (node.is_type<assign>()) {
         if (!compile(*node.children[1], state, code)) return false;
-        append_op(OP_STOR, code);
+        append_op(OP_STORE, code);
         append_address(state.GetAddress(node.children[0]->string()), code);
         return true;
       } else {

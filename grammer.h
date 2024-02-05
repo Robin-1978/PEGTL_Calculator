@@ -13,8 +13,14 @@ struct multiply : tao::pegtl::pad<tao::pegtl::plus<tao::pegtl::one<'*'>>,
                                   tao::pegtl::space> {};
 struct divide : tao::pegtl::pad<tao::pegtl::plus<tao::pegtl::one<'/'>>,
                                 tao::pegtl::space> {};
+struct modulo : tao::pegtl::pad<tao::pegtl::plus<tao::pegtl::one<'%'>>,
+                                tao::pegtl::space> {};
 struct assign : tao::pegtl::pad<tao::pegtl::plus<tao::pegtl::one<'='>>,
                                 tao::pegtl::space> {};
+struct colon : tao::pegtl::pad<tao::pegtl::plus<tao::pegtl::one<','>>,
+                               tao::pegtl::space> {};
+struct question : tao::pegtl::pad<tao::pegtl::plus<tao::pegtl::one<'?'>>,
+                               tao::pegtl::space> {};
 
 // Define the rule for matching integers
 struct integer : tao::pegtl::plus<tao::pegtl::digit> {};
@@ -24,7 +30,6 @@ struct identifier_next : tao::pegtl::ranges<'a', 'z', 'A', 'Z', '0', '9', '_'> {
 };
 struct identifier
     : tao::pegtl::seq<identifier_first, tao::pegtl::star<identifier_next>> {};
-
 // Define the rules for parentheses
 struct open_parenthesis
     : tao::pegtl::pad<tao::pegtl::one<'('>, tao::pegtl::space> {};
@@ -34,22 +39,30 @@ struct close_parenthesis
 struct expression;
 // Define the factor rule for handling parentheses and integers
 struct parenth
-    : tao::pegtl::sor<integer, tao::pegtl::seq<open_parenthesis, expression,
-                                               close_parenthesis>> {};
+    : tao::pegtl::seq<open_parenthesis, expression, close_parenthesis> {};
 
-struct factor : tao::pegtl::sor<integer, parenth, identifier> {};
+struct param : tao::pegtl::list<expression, colon> {};
+
+struct caller
+    : tao::pegtl::sor<
+          tao::pegtl::seq<identifier, open_parenthesis, param,
+                          close_parenthesis>,
+          tao::pegtl::seq<identifier, open_parenthesis, close_parenthesis>> {};
+
+struct factor : tao::pegtl::sor<parenth, caller, integer, identifier> {};
 
 // Define the term rule for handling multiplication and division
-struct term : tao::pegtl::list<factor, tao::pegtl::sor<multiply, divide>> {};
+struct term
+    : tao::pegtl::list<factor, tao::pegtl::sor<multiply, divide, modulo>> {};
 
 // Define the expression rule for handling addition and subtraction
 struct expression : tao::pegtl::list<term, tao::pegtl::sor<plus, minus>> {};
 
-struct st_exp : expression{};
+struct print : tao::pegtl::seq<question, expression> {};
 
-struct st_assign : tao::pegtl::seq<identifier, assign, expression>{};
+struct st_assign : tao::pegtl::seq<identifier, assign, expression> {};
 
-struct statement : tao::pegtl::sor<st_assign, st_exp>{};
+struct statement : tao::pegtl::sor<st_assign, print> {};
 
 // Define the top-level grammar rule
 struct grammar : tao::pegtl::must<statement, tao::pegtl::eof> {};
@@ -102,7 +115,15 @@ struct rearrange
 template <typename Rule>
 using selector = tao::pegtl::parse_tree::selector<
     Rule, tao::pegtl::parse_tree::store_content::on<integer, identifier>,
-    tao::pegtl::parse_tree::remove_content::on<plus, minus, multiply, divide, assign>,
-    rearrange::on<factor, term, expression, st_exp, st_assign, statement, grammar>>;
+    tao::pegtl::parse_tree::remove_content::on<plus, minus, multiply, divide,
+                                               assign, modulo, st_print, caller>,
+    rearrange::on<factor, term, expression, st_assign, statement, grammar>>;
 
-}
+// template <typename Rule>
+// using selector = tao::pegtl::parse_tree::selector<
+//     Rule, tao::pegtl::parse_tree::store_content::on<integer, identifier,
+//     print>, tao::pegtl::parse_tree::remove_content::on<plus, minus, multiply,
+//     divide,
+//                                                assign, modulo, st_print>>;
+
+}  // namespace calc

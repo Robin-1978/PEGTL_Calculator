@@ -6,7 +6,8 @@
 
 namespace calc {
 
-int evaluate(const tao::pegtl::parse_tree::node& node, std::unordered_map<std::string, int>& memory) {
+int evaluate(const tao::pegtl::parse_tree::node& node,
+             std::unordered_map<std::string, int>& memory) {
   if (node.is_root()) return evaluate(*node.children[0], memory);  // skip root
 
   if (node.children.empty()) {
@@ -27,11 +28,14 @@ int evaluate(const tao::pegtl::parse_tree::node& node, std::unordered_map<std::s
   } else {
     if (node.children.size() == 2) {
       if (node.is_type<plus>()) {
-        return evaluate(*node.children[0], memory) + evaluate(*node.children[1], memory);
+        return evaluate(*node.children[0], memory) +
+               evaluate(*node.children[1], memory);
       } else if (node.is_type<minus>()) {
-        return evaluate(*node.children[0], memory) - evaluate(*node.children[1], memory);
+        return evaluate(*node.children[0], memory) -
+               evaluate(*node.children[1], memory);
       } else if (node.is_type<multiply>()) {
-        return evaluate(*node.children[0], memory) * evaluate(*node.children[1], memory);
+        return evaluate(*node.children[0], memory) *
+               evaluate(*node.children[1], memory);
       } else if (node.is_type<divide>()) {
         auto l = evaluate(*node.children[0], memory);
         auto r = evaluate(*node.children[1], memory);
@@ -40,8 +44,13 @@ int evaluate(const tao::pegtl::parse_tree::node& node, std::unordered_map<std::s
           return 0;
         }
         return l / r;
+      } else if (node.is_type<modulo>()) {
+        auto l = evaluate(*node.children[0], memory);
+        auto r = evaluate(*node.children[1], memory);
+        return l % r;
       } else if (node.is_type<assign>()) {
-        memory[node.children[0]->string()] = evaluate(*node.children[1], memory);
+        memory[node.children[0]->string()] =
+            evaluate(*node.children[1], memory);
         return 0;
       } else {
         std::cerr << "Node error" << std::endl;
