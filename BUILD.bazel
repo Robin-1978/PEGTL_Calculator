@@ -2,6 +2,10 @@ cc_binary(
     name = "calc",
     srcs = [
         "main.cpp",
+        "vm.h",
+        "compiler.h",
+        "grammer.h",
+        "evaluator.h"
     ],
     copts = [
         "-std=c++17",
