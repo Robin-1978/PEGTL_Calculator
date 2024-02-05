@@ -18,6 +18,12 @@ struct divide : tao::pegtl::pad<tao::pegtl::plus<tao::pegtl::one<'/'>>,
 // Define the rule for matching integers
 struct integer : tao::pegtl::plus<tao::pegtl::digit> {};
 
+struct identifier_first : tao::pegtl::ranges<'a', 'z', 'A', 'Z'> {};
+struct identifier_next : tao::pegtl::ranges<'a', 'z', 'A', 'Z', '0', '9', '_'> {
+};
+struct identifier
+    : tao::pegtl::seq<identifier_first, tao::pegtl::star<identifier_next>> {};
+
 // Define the rules for parentheses
 struct open_parenthesis
     : tao::pegtl::pad<tao::pegtl::one<'('>, tao::pegtl::space> {};
@@ -30,7 +36,7 @@ struct parenth
     : tao::pegtl::sor<integer, tao::pegtl::seq<open_parenthesis, expression,
                                                close_parenthesis>> {};
 
-struct factor : tao::pegtl::sor<integer, parenth> {};
+struct factor : tao::pegtl::sor<integer, parenth, identifier> {};
 
 // Define the term rule for handling multiplication and division
 struct term : tao::pegtl::list<factor, tao::pegtl::sor<multiply, divide>> {};
@@ -88,14 +94,167 @@ struct rearrange
   }
 };
 
-
-
 template <typename Rule>
 using selector = tao::pegtl::parse_tree::selector<
-    Rule, tao::pegtl::parse_tree::store_content::on<integer>,
+    Rule, tao::pegtl::parse_tree::store_content::on<integer, identifier>,
     tao::pegtl::parse_tree::remove_content::on<plus, minus, multiply, divide>,
     rearrange::on<factor, term, expression, grammar>>;
 
+enum OpCode : uint8_t {
+  OP_UNKNOWN,
+  OP_PUSH,      // op number(4 bytes)
+  OP_POP,       // op
+  OP_STOR,      // op address
+  OP_FETCH,     // op address
+  OP_PLUS,      // op
+  OP_MINUS,     // op
+  OP_MULTIPLY,  // op
+  OP_DIVIDE,    // op
+};
+
+struct vm {
+  std::vector<int> stack;
+  std::vector<int> memory;
+
+  bool run(std::string& code, unsigned& ip) {
+    while (ip < code.size()) {
+      OpCode op = (OpCode)code[ip++];
+      switch (op) {
+        case OP_PUSH:
+          stack.push_back(*(int*)&code[ip]);
+          ip += 4;
+          break;
+        case OP_POP:
+          stack.pop_back();
+        case OP_STOR: {
+          uint8_t address = (uint8_t)code[ip++];
+          if (address < memory.size()) {
+            memory[address] = stack.back();
+            stack.pop_back();
+          } else if (address == memory.size()) {
+            memory.push_back(stack.back());
+            stack.pop_back();
+          } else {
+            std::cerr << "Error address" << std::endl;
+          }
+        } break;
+        case OP_FETCH: {
+          uint8_t address = (uint8_t)code[ip++];
+          if (address < memory.size()) {
+            stack.push_back(memory[address]);
+          } else {
+            std::cerr << "Error address" << std::endl;
+          }
+        } break;
+        case OP_PLUS:
+          stack[stack.size() - 2] =
+              stack[stack.size() - 2] + stack[stack.size() - 1];
+          stack.pop_back();
+          break;
+        case OP_MINUS:
+          stack[stack.size() - 2] =
+              stack[stack.size() - 2] - stack[stack.size() - 1];
+          stack.pop_back();
+          break;
+        case OP_MULTIPLY:
+          stack[stack.size() - 2] =
+              stack[stack.size() - 2] * stack[stack.size() - 1];
+          stack.pop_back();
+          break;
+        case OP_DIVIDE:
+          if (stack[stack.size() - 1] == 0) {
+            std::cerr << "Divide zero" << std::endl;
+          } else {
+            stack[stack.size() - 2] =
+                stack[stack.size() - 2] / stack[stack.size() - 2];
+            stack.pop_back();
+          }
+          break;
+        default:
+          std::cerr << "Unknown OP" << std::endl;
+          break;
+      }
+    }
+    return true;
+  }
+};
+
+struct CompileState {
+  std::unordered_map<std::string, unsigned> variables;
+  uint8_t current{};
+  uint8_t GetAddress(const std::string& name) {
+    auto it = variables.find(name);
+    if (it == variables.end()) {
+      variables[name] = current++;
+      return current - 1;
+    } else {
+      return it->second;
+    }
+  }
+};
+
+void append_op(OpCode op, std::string& code) { code += (char)op; }
+
+void append_number(int num, std::string& code) {
+  code.resize(code.size() + sizeof(int));
+  *(int*)&code[code.size() - sizeof(int)] = num;
+}
+
+void append_address(uint8_t address, std::string& code) {
+  code += (char)address;
+}
+
+bool compile(const tao::pegtl::parse_tree::node& node, CompileState& state,
+             std::string& code) {
+  if (node.is_root())
+    return compile(*node.children[0], state, code);  // skip root
+
+  if (node.children.empty()) {
+    if (node.is_type<integer>()) {
+      append_op(OP_PUSH, code);
+      append_number(std::stoi(node.string()), code);
+      return true;
+    } else {
+      std::cerr << "Node error" << std::endl;
+      return false;
+    }
+  } else {
+    if (node.children.size() == 2) {
+      if (node.is_type<plus>()) {
+        if (!compile(*node.children[0], state, code)) return false;
+        if (!compile(*node.children[1], state, code)) return false;
+        append_op(OP_PLUS, code);
+        return true;
+      } else if (node.is_type<minus>()) {
+        if (!compile(*node.children[0], state, code)) return false;
+        if (!compile(*node.children[1], state, code)) return false;
+        append_op(OP_MINUS, code);
+        return true;
+      } else if (node.is_type<multiply>()) {
+        if (!compile(*node.children[0], state, code)) return false;
+        if (!compile(*node.children[1], state, code)) return false;
+        append_op(OP_MULTIPLY, code);
+        return true;
+      } else if (node.is_type<divide>()) {
+        if (!compile(*node.children[0], state, code)) return false;
+        if (!compile(*node.children[1], state, code)) return false;
+        append_op(OP_DIVIDE, code);
+        return true;
+      } else {
+        std::cerr << "Node error" << std::endl;
+        return false;
+      }
+    } else {
+      std::cerr << "Node error" << std::endl;
+      return false;
+    }
+  }
+};
+
+bool compile(const tao::pegtl::parse_tree::node& node, std::string& code) {
+  CompileState state;
+  return compile(node, state, code);
+};
 
 int evaluate(const tao::pegtl::parse_tree::node& node) {
   if (node.is_root()) return evaluate(*node.children[0]);  // skip root
@@ -154,7 +313,17 @@ int main(int argc, char* argv[]) {
           calc::grammar, tao::pegtl::parse_tree::node, calc::selector>(in);
       tao::pegtl::parse_tree::print_dot(std::cout, *root);
       auto value = calc::evaluate(*root);
-      std::cout << "= " << value << std::endl;
+      std::cout << value << " (eval)" << std::endl;
+
+      std::string code;
+      if (calc::compile(*root, code)) {
+        calc::vm vm;
+        unsigned ip = 0;
+        vm.run(code, ip);
+        std::cout << vm.stack[0] << " (vm[" << code.size() << "])" << std::endl;
+      } else {
+        std::cerr << "Compile error" << std::endl;
+      }
     } catch (tao::pegtl::parse_error& e) {
       std::cerr << e.what() << std::endl;
     }
