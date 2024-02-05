@@ -13,6 +13,9 @@ struct multiply : tao::pegtl::pad<tao::pegtl::plus<tao::pegtl::one<'*'>>,
                                   tao::pegtl::space> {};
 struct divide : tao::pegtl::pad<tao::pegtl::plus<tao::pegtl::one<'/'>>,
                                 tao::pegtl::space> {};
+struct assign : tao::pegtl::pad<tao::pegtl::plus<tao::pegtl::one<'='>>,
+                                tao::pegtl::space> {};
+
 // Define the rule for matching integers
 struct integer : tao::pegtl::plus<tao::pegtl::digit> {};
 
@@ -20,7 +23,7 @@ struct identifier_first : tao::pegtl::ranges<'a', 'z', 'A', 'Z'> {};
 struct identifier_next : tao::pegtl::ranges<'a', 'z', 'A', 'Z', '0', '9', '_'> {
 };
 struct identifier
-    : tao::pegtl::seq<identifier_first, tao::pegtl::star<identifier_next>> {};
+    : tao::pegtl::pad<tao::pegtl::seq<identifier_first, tao::pegtl::star<identifier_next>>, tao::pegtl::space> {};
 
 // Define the rules for parentheses
 struct open_parenthesis
@@ -42,10 +45,14 @@ struct term : tao::pegtl::list<factor, tao::pegtl::sor<multiply, divide>> {};
 // Define the expression rule for handling addition and subtraction
 struct expression : tao::pegtl::list<term, tao::pegtl::sor<plus, minus>> {};
 
-// Define the top-level grammar rule
-struct grammar : tao::pegtl::must<expression, tao::pegtl::eof> {};
+struct st_exp : expression{};
 
-enum OP { PLUS, MINUS, MULTIPLY, DIVIDE };
+struct st_assign : tao::pegtl::seq<identifier, assign, expression>{};
+
+struct statement : tao::pegtl::sor<st_assign, st_exp>{};
+
+// Define the top-level grammar rule
+struct grammar : tao::pegtl::must<statement, tao::pegtl::eof> {};
 
 // after a node is stored successfully, you can add an optional transformer like
 // this:
@@ -95,7 +102,7 @@ struct rearrange
 template <typename Rule>
 using selector = tao::pegtl::parse_tree::selector<
     Rule, tao::pegtl::parse_tree::store_content::on<integer, identifier>,
-    tao::pegtl::parse_tree::remove_content::on<plus, minus, multiply, divide>,
-    rearrange::on<factor, term, expression, grammar>>;
+    tao::pegtl::parse_tree::remove_content::on<plus, minus, multiply, divide, assign>,
+    rearrange::on<factor, term, expression, st_exp, st_assign, statement, grammar>>;
 
 }

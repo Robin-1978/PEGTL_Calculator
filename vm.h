@@ -32,6 +32,7 @@ struct vm {
           break;
         case OP_POP:
           stack.pop_back();
+          break;
         case OP_STOR: {
           uint8_t address = (uint8_t)code[ip++];
           if (address < memory.size()) {

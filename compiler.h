@@ -4,8 +4,7 @@
 
 #include "vm.h"
 
-namespace calc
-{
+namespace calc {
 struct CompileState {
   std::unordered_map<std::string, unsigned> variables;
   uint8_t current{};
@@ -18,9 +17,16 @@ struct CompileState {
       return it->second;
     }
   }
+
+  bool Find(const std::string& name) {
+    return variables.find(name) != variables.end();
+  }
 };
 
-void append_op(OpCode op, std::string& code) { code += (char)op; }
+void append_op(OpCode op, std::string& code) {
+  code.resize(code.size() + 1);
+  *(OpCode*)&code[code.size() - 1] = op;
+}
 
 void append_number(int num, std::string& code) {
   code.resize(code.size() + sizeof(int));
@@ -28,7 +34,8 @@ void append_number(int num, std::string& code) {
 }
 
 void append_address(uint8_t address, std::string& code) {
-  code += (char)address;
+  code.resize(code.size() + 1);
+  *(uint8_t*)&code[code.size() - 1] = address;
 }
 
 bool compile(const tao::pegtl::parse_tree::node& node, CompileState& state,
@@ -41,6 +48,15 @@ bool compile(const tao::pegtl::parse_tree::node& node, CompileState& state,
       append_op(OP_PUSH, code);
       append_number(std::stoi(node.string()), code);
       return true;
+    } else if (node.is_type<identifier>()) {
+      if (state.Find(node.string())) {
+        append_op(OP_FETCH, code);
+        append_address(state.GetAddress(node.string()), code);
+        return true;
+      } else {
+        std::cerr << "Variable is not defined: " << node.string() << std::endl;
+        return false;
+      }
     } else {
       std::cerr << "Node error" << std::endl;
       return false;
@@ -67,6 +83,11 @@ bool compile(const tao::pegtl::parse_tree::node& node, CompileState& state,
         if (!compile(*node.children[1], state, code)) return false;
         append_op(OP_DIVIDE, code);
         return true;
+      } else if (node.is_type<assign>()) {
+        if (!compile(*node.children[1], state, code)) return false;
+        append_op(OP_STOR, code);
+        append_address(state.GetAddress(node.children[0]->string()), code);
+        return true;
       } else {
         std::cerr << "Node error" << std::endl;
         return false;
@@ -78,8 +99,4 @@ bool compile(const tao::pegtl::parse_tree::node& node, CompileState& state,
   }
 };
 
-bool compile(const tao::pegtl::parse_tree::node& node, std::string& code) {
-  CompileState state;
-  return compile(node, state, code);
-};    
-} // namespace calc
+}  // namespace calc
