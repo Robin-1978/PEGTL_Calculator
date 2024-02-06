@@ -2,7 +2,7 @@
 
 #include <iostream>
 
-#include "grammer.h"
+#include "grammar.h"
 
 namespace calc {
 

@@ -1,8 +1,9 @@
 #pragma once
 #include <iostream>
+#include <variant>
 #include <vector>
 
-#include "grammer.h"
+#include "grammar.h"
 
 namespace calc {
 
@@ -51,7 +52,22 @@ enum OpCode : unsigned char {
   OP_PRINT,  // Print the top stack value
 };
 
+
+enum v_type{
+  VOID = 0,
+  INTEGER,
+  FLOAT,
+  STRING,
+  ADDRESS,
+};
+
+struct callee{
+  std::string name;
+  std::vector<v_type> types;
+};
+
 struct vm {
+  using stack_t = std::variant<long long, unsigned long long, double, std::string>;
   std::vector<int> stack;
   std::vector<int> memory;
   std::vector<int> registers;
@@ -125,11 +141,11 @@ struct vm {
           }
           break;
         case OP_PRINT:
-          std::cout << "=" << stack[stack.size()-1] << std::endl;
+          std::cout << "=" << stack[stack.size() - 1] << std::endl;
           stack.pop_back();
           break;
         default:
-          std::cerr << "Unknown OP: " <<op<< std::endl;
+          std::cerr << "Unknown OP: " << op << std::endl;
           break;
       }
     }
