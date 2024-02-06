@@ -124,8 +124,12 @@ struct vm {
             stack.pop_back();
           }
           break;
+        case OP_PRINT:
+          std::cout << "=" << stack[stack.size()-1] << std::endl;
+          stack.pop_back();
+          break;
         default:
-          std::cerr << "Unknown OP" << std::endl;
+          std::cerr << "Unknown OP: " <<op<< std::endl;
           break;
       }
     }

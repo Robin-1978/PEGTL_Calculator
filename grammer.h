@@ -116,7 +116,7 @@ template <typename Rule>
 using selector = tao::pegtl::parse_tree::selector<
     Rule, tao::pegtl::parse_tree::store_content::on<integer, identifier>,
     tao::pegtl::parse_tree::remove_content::on<plus, minus, multiply, divide,
-                                               assign, modulo, st_print, caller>,
+                                               assign, modulo, print, caller>,
     rearrange::on<factor, term, expression, st_assign, statement, grammar>>;
 
 // template <typename Rule>

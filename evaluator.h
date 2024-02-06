@@ -56,11 +56,21 @@ int evaluate(const tao::pegtl::parse_tree::node& node,
         std::cerr << "Node error" << std::endl;
         return 0;
       }
+    } else if (node.children.size() == 1) {
+      if (node.is_type<print>()) {
+        std::cout << "=" << evaluate(*node.children[0], memory) << std::endl;
+        return 0;
+      }
     } else {
-      std::cerr << "Node error" << std::endl;
+      if (node.is_type<caller>()) {
+        // TODO : call function
+      } else {
+        std::cerr << "Node error" << std::endl;
+      }
       return 0;
     }
   }
+  return 0;
 }
 
 }  // namespace calc

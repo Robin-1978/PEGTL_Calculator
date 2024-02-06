@@ -97,6 +97,10 @@ bool compile(const tao::pegtl::parse_tree::node& node, CompileState& state,
         std::cerr << "Node error" << std::endl;
         return false;
       }
+    } else if (node.children.size() == 1) {
+      if (!compile(*node.children[0], state, code)) return false;
+      append_op(OP_PRINT, code);
+      return true;
     } else {
       std::cerr << "Node error" << std::endl;
       return false;
